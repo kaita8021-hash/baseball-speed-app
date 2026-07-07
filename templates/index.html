@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>球速けいそくアプリ</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    background: #0d2018;   /* ナイターの球場みたいな深い緑 */
+    color: white;
+  }
+  h1 { margin-top: 30px; }
+  #timer {
+    font-size: 70px;
+    color: #ffb52e;        /* 電光掲示板のオレンジ色 */
+  }
+　button, input {
+        touch-action: manipulation;
+  }
+  #mainBtn {
+    font-size: 28px;
+    padding: 20px 60px;
+    border: none;
+    border-radius: 12px;
+    background: #2fa35c;   /* スタートは芝の緑 */
+    color: white;
+    cursor: pointer;
+  }
+  #mainBtn.running {
+    background: #e0432f;   /* 計測中は赤 */
+  }
+  #result { font-size: 24px; margin-top: 20px; }
+  #message { color: #ffb52e; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>⚾ 球速けいそくアプリ</h1>
+
+<p>マウンドからの距離:
+  <input type="number" id="distance" value="18.44" step="0.01"> m
+</p>
+
+<p id="timer">0.00</p>
+
+<button id="mainBtn">スタート</button>
+
+<p id="result"></p>
+<p id="message"></p>
+
+<script>
+const btn = document.getElementById("mainBtn");
+const timerEl = document.getElementById("timer");
+
+let running = false;    // いま計測中かどうか
+let startTime = 0;      // スタートした瞬間の時刻
+let timerId = null;     // くり返し処理の番号
+
+btn.onclick = function () {
+  if (running == false) {
+    // ---- スタート ----
+    running = true;
+    startTime = performance.now();
+    btn.textContent = "ストップ！";
+    btn.className = "running";
+    timerId = setInterval(showTime, 10);   // 0.01秒ごとに表示を更新
+  } else {
+    // ---- ストップ ----
+    running = false;
+    clearInterval(timerId);
+    btn.textContent = "スタート";
+    btn.className = "";
+
+    const sec = (performance.now() - startTime) / 1000;
+    timerEl.textContent = sec.toFixed(2);
+    sendToPython(sec);
+  }
+};
+
+// タイマーの表示を新しくする関数
+function showTime() {
+  const sec = (performance.now() - startTime) / 1000;
+  timerEl.textContent = sec.toFixed(2);
+}
+
+// Python(サーバー)に距離と時間を送って、球速を計算してもらう関数
+async function sendToPython(sec) {
+  const distance = document.getElementById("distance").value;
+
+  const res = await fetch("/calculate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ distance: distance, time: sec })
+  });
+  const data = await res.json();
+
+  document.getElementById("result").textContent = "球速: " + data.speed_kmh + " km/h";
+  document.getElementById("message").textContent = data.message;
+}
+</script>
+
+</body>
+</html>
